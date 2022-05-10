@@ -1,8 +1,8 @@
 
 # Learning Spatial-Temporal Graphs with Self-Attention Augmented Conditional Random Fields for Video-Based Person Re-identification
 
-![Screenshot](./figures/pipeline.png)
-![Screenshot](./figures/motivation.png)
+<!-- ![Screenshot](./figures/pipeline.png) -->
+<!-- ![Screenshot](./figures/motivation.png) -->
 
 This repo is the pytorch implementation of ["Learning Spatial-Temporal Graphs with Self-Attention Augmented Conditional Random Fields for Video-Based Person Re-identification"]().
 
