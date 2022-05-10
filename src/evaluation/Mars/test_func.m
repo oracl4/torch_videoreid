@@ -1,9 +1,10 @@
 function [map, r1_precision] = test_func(feat_path)
-  
+
   addpath 'utils/'
+  
   load('info/query_IDX.mat');  % load pre-defined query index
   track_test = importdata('info/tracks_test_info.mat');
-  
+
   % train, gallery, and query labels
   label_gallery = track_test(:, 3);
   label_query = label_gallery(query_IDX);
@@ -26,9 +27,9 @@ function [map, r1_precision] = test_func(feat_path)
   distance = pdist2(feat_gallery',feat_query','euclidean');
 
   [CMC, map, r1_pairwise, ap_pairwise] = evaluation_mars(distance, label_gallery, label_query, cam_gallery, cam_query);
-  
-  r1_precision = CMC(1,1)
-  
+
+  r1_precision = CMC(1,1);
+
   fprintf('single query:   mAP = %f, r1 precision = %f\n', map, CMC(1,1));
   
  endfunction

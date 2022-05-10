@@ -10,8 +10,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 import wandb
 
-from Model_Mars import Model
-import test_Mars
+from Model import Model
+import test_LSVID
 
 # ===================================================================================================
 # All parameter, change before training
@@ -20,10 +20,10 @@ import test_Mars
 wandb_flag = True
 
 # CUDA Device
-cuda_device = torch.device("cuda:0")
+cuda_device = torch.device("cuda:1")
 
 # Training parameters
-learning_rate = 0.000002
+learning_rate = 1e-6
 n_epochs = 120
 batch_size = 1
 
@@ -36,22 +36,25 @@ n_head = 8          # Number of self-attention head
 n_cluster = 38      # Number of cluster (for compatibility matrix only ?)
 
 #### Mars Dataset
-dataset_name = "Mars"
-n_class = 625       # Number of classes in dataset / Train = 625
-experiment_name = "base"
+dataset_name = "LSVID"
+n_class = 1042
+experiment_name = "TrainNewFeature"
 
 # Global features path
-globalfeat_path = '../../features/input/Mars/previous/trainlocfeatfix.mat'
+globalfeat_path = '../../features/input/LSVID/previous/trainval/trainval_glofeat.mat'
+
+# New global features path
+localfeat1_path = '../../features/input/LSVID/base/train/partition_1/'
 
 # Local features path
-localfeat2_path = '../../features/input/Mars/base/train/partition_2/'
-localfeat4_path = '../../features/input/Mars/base/train/partition_4/'
+localfeat2_path = '../../features/input/LSVID/base/train/partition_2/'
+localfeat4_path = '../../features/input/LSVID/base/train/partition_4/'
 
 # Evaluation path
-evaluation_path =  '../evaluation/Mars/'
+evaluation_path =  '../evaluation/LSVID/'
 
 # Labels path
-labels_path =  '../evaluation/Mars/info/tracks_train_info.mat'
+labels_path =  '../../features/input/LSVID/previous/trainval/trainval_label.mat'
 
 # ===================================================================================================
 
@@ -63,6 +66,7 @@ if wandb_flag:
 
     # Save the parameter
     wandb.config = {
+        "dataset_name": dataset_name,
         "experiment" : experiment_name,
         "learning_rate" : learning_rate,
         "epochs" : n_epochs,
@@ -102,49 +106,39 @@ grf = sio.loadmat(globalfeat_path)
 grf = grf['glofeat']
 
 # Load the local features List
+trainlist1 = sorted(glob.glob(localfeat1_path+'/*.mat'))
 trainlist2 = sorted(glob.glob(localfeat2_path+'/*.mat'))
 trainlist4 = sorted(glob.glob(localfeat4_path+'/*.mat'))
 train_num = len(trainlist2)
 
 # Load the labels
 gt = sio.loadmat(labels_path)
-gt = gt['track_train_info']
+gt = gt['trainval_labels']
 
-# Class GT is in third column
-cls_list = np.unique(gt[:, 2])
+cle = np.eye(n_class)
 
-# Encode the ground truth
-class_encoding = np.eye(n_class)
+# OHE Labels
+raw_labels_ohe = np.expand_dims(gt, 1)
+raw_labels_ohe = np.tile(raw_labels_ohe, (1, n_frames, 1))
 
-# Class label
-label3 = np.zeros((train_num, n_frames, 1))
+# Class Labels
+raw_labels = np.argmax(raw_labels_ohe, axis=2)
+raw_labels = np.expand_dims(raw_labels, 2)
 
-# One hot encoding label
-labels = np.zeros((train_num, n_frames, n_class))
-
-# Encode the ground truth
-for i in range(0, gt.shape[0]):
-    
-    label_id = np.where(cls_list == gt[i, 2])[0][0]
-    
-    lbs = np.expand_dims(label_id, 0)
-    lbs = np.tile(lbs, (n_frames, 1))
-    
-    cl = np.expand_dims(class_encoding[label_id, :], 0)
-    cl = np.tile(cl, (n_frames,1))
-    
-    labels[i,:,:] = cl
-    label3[i,:,:] = lbs
+raw_labels = raw_labels.astype('float')
+raw_labels_ohe = raw_labels_ohe.astype('float')
 
 # ===================================================================================================
 # Model creation
 
 TrainingModel = Model(batch_size, n_features, n_hidden, n_class, n_frames, n_partitions, n_head, n_cluster, cuda_device)
 
-# TODO: Learning rate scheduler
+# Optimizer with L2 regularization
+optimizer = torch.optim.Adam(params=TrainingModel.parameters(), lr=learning_rate, weight_decay=1e-4)
 
-# Optimizer
-optimizer = torch.optim.Adam(TrainingModel.parameters(), lr=learning_rate)
+# Learning rate scheduler
+LR_decayRate = 0.5
+LR_Scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=100, gamma=LR_decayRate)
 
 # print(TrainingModel)
 
@@ -176,13 +170,19 @@ for epoch in range(0, n_epochs+1):
         ix = n_batchs[batch:(batch+batch_size)]
 
         # Get the global features
-        glofeat = grf[ix, 0:n_frames, :]
+        # glofeat = grf[ix, 0:n_frames, :]
 
         # Get the local features by concatenating the features
         locfeat = np.zeros((batch_size, n_frames, n_partitions-1, n_features))
 
         k = 0
         for idx in ix:
+
+            # Get the global features
+            glofeat = sio.loadmat(trainlist1[idx])
+            glofeat = glofeat['feat']
+            glofeat = np.expand_dims(glofeat, axis=0)
+            glofeat = np.transpose(glofeat, (0, 2, 1))        # Comment this for previous feature
 
             # Local features pool2
             featl2 = sio.loadmat(trainlist2[idx])
@@ -204,28 +204,31 @@ for epoch in range(0, n_epochs+1):
         # Placeholder
         global_input = glofeat
         local_input = locfeat
-        labels_input = label3[ix, :, :]
-        labels_ohe_input = labels[ix, :, :]
+        labels_input = raw_labels[ix, :, :]
+        labels_ohe_input = raw_labels_ohe[ix, :, :]
 
         # Convert the input to device
         global_input = torch.from_numpy(global_input).to(cuda_device)
         local_input = torch.from_numpy(local_input).to(cuda_device)
         labels_input = torch.from_numpy(labels_input).to(cuda_device)
         labels_ohe_input = torch.from_numpy(labels_ohe_input).to(cuda_device)
-        
-        optimizer.zero_grad()
-        
+
         # Forward
         _, CRF_Loss_Batch, Loss = TrainingModel(global_input, local_input, labels_input, labels_ohe_input)
-        
+
         # Backpropagate
+        optimizer.zero_grad()
         Loss.backward()
         optimizer.step()
         
         # Loss placeholder
         epoch_loss.append(Loss)
         epoch_crf_loss.append(CRF_Loss_Batch)
-        
+    
+    LR_Record = LR_Scheduler.get_last_lr()
+    LR_Record = LR_Record[0]
+    LR_Scheduler.step()
+
     # Print the Loss
     loss = torch.mean(torch.stack(epoch_loss), dim=0).item()
     crf_loss = torch.mean(torch.stack(epoch_crf_loss), dim=0).item()
@@ -234,13 +237,15 @@ for epoch in range(0, n_epochs+1):
     # Tensorboard
     writer.add_scalar('training_Loss', loss, epoch)
     writer.add_scalar('crf_Loss', crf_loss, epoch)
+    writer.add_scalar('LR', LR_Record, epoch)
 
     # WanDB logging
     if wandb_flag:
         wandb.log({
             "epoch" : epoch,
             "training_Loss" : loss,
-            "crf_Loss" : crf_loss
+            "crf_Loss" : crf_loss,
+            "LR" : LR_Record
         })
     
     # Evaluation and saving model
@@ -255,7 +260,7 @@ for epoch in range(0, n_epochs+1):
         
         TrainingModel.eval()
         with torch.no_grad():
-            evaluator = test_Mars.Evaluator(TrainingModel, str(experiment_name + "_" + str(epoch)), batch_size, n_features, n_class, n_frames, n_partitions, cuda_device)
+            evaluator = test_LSVID.Evaluator(evaluation_path, TrainingModel, dataset_name, experiment_name, epoch, batch_size, n_features, n_class, n_frames, n_partitions, cuda_device)
             result_map, result_r1 = evaluator.get_evaluation()
 
         # Tensorboard
@@ -272,7 +277,7 @@ for epoch in range(0, n_epochs+1):
 
         # Save the best model if test accuracy is increased
         if result_map > best_mAP:
-            torch.save(TrainingModel, model_out_path)
+            torch.save(TrainingModel, best_out_path)
             best_mAP = result_map
         
         # Change to Training Mode

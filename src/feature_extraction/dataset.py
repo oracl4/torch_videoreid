@@ -19,11 +19,14 @@ class videodataset(data.Dataset):
 
 	def __getitem__(self, index):
 		im_dir = self.img_list[index]
+		
 		# print(im_dir)
 		image_list = glob.glob(im_dir) # ilids, mars
 		#image_list = glob.glob(im_dir+"/*.png") # prid
 		#print(image_list)
+		
 		image_list.sort()
+		
 		images = []
 		for name in image_list:
 			end = name[-3:]
@@ -43,7 +46,7 @@ class videodataset(data.Dataset):
 				im_path = image_list[i%len(image_list)]
 				im_paths.append(im_path)
 
-
+		print(im_paths)
 		frames = []
 
 		for im_path in im_paths:

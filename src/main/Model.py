@@ -10,7 +10,7 @@ class Model(nn.Module):
     
     """
 
-    def __init__(self, batch_size, n_features, n_hidden, n_class, n_frames, n_partitions, n_head, n_cluster, device="cuda:0"):
+    def __init__(self, batch_size, n_features, n_hidden, n_class, n_frames, n_partitions, n_head, n_cluster, device):
         """
         Build the model with the specified parameter
         
@@ -76,13 +76,13 @@ class Model(nn.Module):
         # Iterate through batch
         for i in range(0, self.batch_size):
             
-            # Concatenate the global and local features
+            # Conconcatenate the global and local features
             multiscale_embed = torch.cat((local_features[i,:,:,:],
                                           emb_global[i,:,:,:]), dim=1)
             
             # Forward to self-attention with CRF layer
-            cluster_features, CRF_Loss, sa_features = self.CRF_Module(multiscale_embed.float(), labels_ohe[i,0,:])
-            
+            cluster_features, CRF_Loss, sa_features = self.CRF_Module(multiscale_embed.float(), labels_ohe[i, 0, :])
+
             cluster_features = torch.sum(cluster_features, dim=0, keepdim=True)
             
             # Add the loss
@@ -113,7 +113,6 @@ class Model(nn.Module):
         
         CRF_Loss_Batch = CRF_Loss_Batch/self.batch_size
         
-        # TODO: Add regularization_penalty for the loss 
         Loss = CELoss + CRF_Loss_Batch
         
         return xemg, CRF_Loss_Batch, Loss

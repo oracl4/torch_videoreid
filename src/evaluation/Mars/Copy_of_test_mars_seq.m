@@ -8,7 +8,7 @@ label_query = label_gallery(query_IDX);
 cam_gallery = track_test(:, 4);
 cam_query = cam_gallery(query_IDX);
 
-name = "/home/oracl4/work_dir/mahdi/scrf/videoreid/data/outputs_new/mars/scrf_test_mars_prev.mat";
+name = "/home/oracl4/work_dir/mahdi/scrf/videoreid/data/outputs_new/mars/testFeatures_epoch120_newFeatex.mat";
 
 box_feature_test = load(name); 
 box_feature_test = box_feature_test.feat;

@@ -7,7 +7,7 @@ class CRF_SelfAttention(nn.Module):
     
     """
     
-    def __init__(self, n_features, n_hidden, n_class, n_frames, n_partitions, n_head, n_cluster, device="cuda:0"):
+    def __init__(self, n_features, n_hidden, n_class, n_frames, n_partitions, n_head, n_cluster, device):
         """
         Build the CRF as RNN with Self-Attention Module
         
@@ -32,16 +32,18 @@ class CRF_SelfAttention(nn.Module):
         self.n_partitions = n_partitions
         self.n_head = n_head
         self.n_cluster = n_cluster
-
         self.device = device
         
         # Maximum number of iterations in CRF as RNN
         self.max_iterations = 2
 
         # Compatibility matrix > identity matrix with n_cluster x n_cluster
-        self.compatibility_matrix = torch.eye(n=n_cluster,
-                                              m=n_cluster,
-                                              dtype=torch.float32).to(device)
+        self.compatibility_matrix = -(torch.eye(self.n_cluster,
+                                              dtype=torch.float32,
+                                              requires_grad=True,
+                                              device=self.device
+                                              )
+        )
 
         # Unary energy calculation layer
         self.unary = nn.Linear(self.n_features, self.n_cluster)
@@ -124,10 +126,10 @@ class CRF_SelfAttention(nn.Module):
             multi_g = torch.cat(torch.chunk(multi_g, scale, dim=1), dim=0)
             
             if ind == 0:
-                gval = torch.concat([gval, multi_g], dim=0) # scales, n_size, n_hidden
+                gval = torch.cat([gval, multi_g], dim=0) # scales, n_size, n_hidden
             else:
-                gvalt = torch.concat([(torch.zeros([ind, self.n_partitions, self.n_hidden]).to(self.device)), multi_g], dim=0)
-                gval = torch.concat([gval, (torch.zeros([1, self.n_partitions, self.n_hidden]).to(self.device))], dim=0)
+                gvalt = torch.cat([(torch.zeros([ind, self.n_partitions, self.n_hidden]).to(self.device)), multi_g], dim=0)
+                gval = torch.cat([gval, (torch.zeros([1, self.n_partitions, self.n_hidden]).to(self.device))], dim=0)
                 gval = gval + gvalt
         
         # Accumulate self-attention outputs
@@ -156,10 +158,10 @@ class CRF_SelfAttention(nn.Module):
             multi_g = torch.cat(torch.chunk(multi_g, scale, dim=1), dim=0)
             
             if ind == 0:
-                gval = torch.concat([gval, multi_g], dim=0) # scales, n_size, n_hidden
+                gval = torch.cat([gval, multi_g], dim=0) # scales, n_size, n_hidden
             else:
-                gvalt = torch.concat([(torch.zeros([ind, self.n_partitions, self.n_hidden]).to(self.device)), multi_g], dim=0)
-                gval = torch.concat([gval, (torch.zeros([1, self.n_partitions, self.n_hidden]).to(self.device))], dim=0)
+                gvalt = torch.cat([(torch.zeros([ind, self.n_partitions, self.n_hidden]).to(self.device)), multi_g], dim=0)
+                gval = torch.cat([gval, (torch.zeros([1, self.n_partitions, self.n_hidden]).to(self.device))], dim=0)
                 gval = gval + gvalt
         
         # Accumulate self-attention outputs
@@ -187,10 +189,10 @@ class CRF_SelfAttention(nn.Module):
             multi_g = torch.cat(torch.chunk(multi_g, scale, dim=1), dim=0)
             
             if ind == 0:
-                gval = torch.concat([gval, multi_g], dim=0) # scales, n_size, n_hidden
+                gval = torch.cat([gval, multi_g], dim=0) # scales, n_size, n_hidden
             else:
-                gvalt = torch.concat([(torch.zeros([ind, self.n_partitions, self.n_hidden]).to(self.device)), multi_g], dim=0)
-                gval = torch.concat([gval, (torch.zeros([1, self.n_partitions, self.n_hidden]).to(self.device))], dim=0)
+                gvalt = torch.cat([(torch.zeros([ind, self.n_partitions, self.n_hidden]).to(self.device)), multi_g], dim=0)
+                gval = torch.cat([gval, (torch.zeros([1, self.n_partitions, self.n_hidden]).to(self.device))], dim=0)
                 gval = gval + gvalt
         
         # Accumulate self-attention outputs
@@ -409,9 +411,9 @@ class CRF_SelfAttention(nn.Module):
         
         # Calculate CRF Loss (without contrastive loss)
         CrossEntropyLoss = nn.CrossEntropyLoss()
-        CELoss = 0.1*(CrossEntropyLoss(classes, labels[None,]))
+        CELoss = (CrossEntropyLoss(classes, labels[None,]))
         
         # Combine the loss
-        CRF_Loss =  CELoss + (0.001 * act_loss)
+        CRF_Loss =  0.5*CELoss + (0.0005 * act_loss)
         
         return cluster_features, CRF_Loss, context

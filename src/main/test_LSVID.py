@@ -29,12 +29,12 @@ class Evaluator():
         self.n_partitions = n_partitions
         
         # Global features path
-        # self.globalfeat_path = '../../features/input/Mars/previous/test/testlocfeatfix.mat'
+        # self.globalfeat_path = '../../features/input/LSVID/previous/test/test_glofeat.mat'
 
-        # Local and global features path
-        self.localfeat1_path = '../../features/input/Mars/base/test/partition_1/'
-        self.localfeat2_path = '../../features/input/Mars/base/test/partition_2/'
-        self.localfeat4_path = '../../features/input/Mars/base/test/partition_4/'
+        # Local features path
+        self.localfeat1_path = '../../features/input/LSVID/base/test/partition_1/'
+        self.localfeat2_path = '../../features/input/LSVID/base/test/partition_2/'
+        self.localfeat4_path = '../../features/input/LSVID/base/test/partition_4/'
 
         # Output features path
         self.output_features_dir = '../../features/output/' + dataset_name + "/" + experiment_name + "/"
@@ -81,12 +81,12 @@ class Evaluator():
             # Load the 2 partition local feature
             featl2 = sio.loadmat(testlist2[i])
             featl2 = featl2['feat']
-            featl2 = np.transpose(featl2, (2, 0, 1))
+            featl2 = np.transpose(featl2, (2, 0, 1))    # Comment this for previous feature
             
             # Load the 4 partition local feature
             featl4 = sio.loadmat(testlist4[i])
             featl4 = featl4['feat']
-            featl4 = np.transpose(featl4, (2, 0, 1))
+            featl4 = np.transpose(featl4, (2, 0, 1))    # Comment this for previous feature
             
             # Combine the local feature
             featl = np.concatenate([featl2, featl4],axis = 1)
@@ -108,31 +108,31 @@ class Evaluator():
 
         # # Save the output features
         sio.savemat(self.output_features_path, {"feat": feat}, do_compression=False)
+        
         print("##########   Calling evaluation Function")
 
         # Call the octave function
         octave.addpath(self.evaluation_dir)
-        octave.addpath(os.path.join(self.evaluation_dir, "info"))
-        octave.addpath(os.path.join(self.evaluation_dir, "utils"))
+        octave.addpath(os.path.join(self.evaluation_dir, "data"))
         octave.eval("pkg load statistics")
         
         print("Performing evaluation on test features")
         print("Test features : ", self.output_features_path)
 
-        map_, r1_precision = octave.test_func(self.output_features_path, nout=2)
+        map_, r1_precision = octave.eval_func(self.output_features_path, nout=2)
         print("##########")
 
         return map_, r1_precision
-
+        
 # Perform Evaluation
 if __name__ == '__main__':
     
     # CUDA Device
-    cuda_device = torch.device("cuda:0")
+    cuda_device = torch.device("cuda:1")
 
     # Network parameters
     batch_size = 1
-    n_class = 625       # Mars 625
+    n_class = 1042       # Mars 625
     n_features = 512    # Number of features from feature extractor
     n_frames = 18       # Number of temporal frames
     n_partitions = 7    # Number of partitions / spatial frames (4 Local Pooling + 2 Local Pooling + 1 Global Pooling)
@@ -140,12 +140,13 @@ if __name__ == '__main__':
     ###### Extract feature and get evaluation
     
     # Load pre-trained model
-    pretrained_path = "/home/oracl4/work_dir/mahdi/torch_videoreid/work_dir/Mars/base/model/model_epoch_20.pth"
+    pretrained_path = "../../work_dir/LSVID/base_newFeatex/model/best_model.pth"
     TestModel = torch.load(pretrained_path, map_location=cuda_device)
+    TestModel.to(cuda_device)
     TestModel.eval()
     
     # Create evaluator
-    evaluator = Evaluator(TestModel, "Mars", "base", 20, batch_size, n_features, n_class, n_frames, n_partitions, cuda_device)
+    evaluator = Evaluator(TestModel, "LSVID", "new_featex", 0, batch_size, n_features, n_class, n_frames, n_partitions, cuda_device)
 
     # Extract the output features
     map_, r1_precision = evaluator.get_evaluation()

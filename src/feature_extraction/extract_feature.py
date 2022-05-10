@@ -13,10 +13,10 @@ from tqdm import tqdm
 # All parameter, change before extracting
 
 # CUDA Device
-cuda_device = 0
+cuda_device = 1
 os.environ["CUDA_VISIBLE_DEVICES"] = str(cuda_device)
 
-## Mars Dataset
+# ## Mars Dataset
 dataset_name = "Mars"
 num_classes = 1261
 image_dir = '../../dataset/Mars/images/'
@@ -24,11 +24,35 @@ pretrained_model = '../../model/feature_extraction/pretrained/resnet50_mars.pth'
 # sequence_file = '../../dataset/Mars/seq_list/list_train_seq.txt'    # Train List
 sequence_file = '../../dataset/Mars/seq_list/list_test_seq.txt'     # Test List
 
+# ## LS-VID Dataset
+# dataset_name = "LSVID"
+# num_classes = 1042
+# image_dir = '../../dataset/LS-VID/tracklet/'
+# pretrained_model = '../../model/feature_extraction/weight_ls/resnet50_mars_00499.pth'
+# sequence_file = '../../dataset/LS-VID/list_sequence/list_seq_train.txt'    # Train List
+# # sequence_file = '../../dataset/LS-VID/list_sequence/list_seq_test.txt'     # Test List
+
+# ## iLIDS-VID Dataset
+# dataset_name = "ILIDS"
+# num_classes = 131
+# image_dir = '../../dataset/iLIDS-VID/i-LIDS-VID/images/'
+# pretrained_model = '../../model/feature_extraction/pretrained/resnet50_ilids.pth'
+# # sequence_file = '../../dataset/iLIDS-VID/sequence_file/train001.txt'    # Train List
+# sequence_file = '../../dataset/iLIDS-VID/sequence_file/test001.txt'     # Test List
+
+## PRID Dataset
+# dataset_name = "PRID"
+# num_classes = 89
+# image_dir = '../../dataset/prid/single_shot/'
+# pretrained_model = '../../model/feature_extraction/pretrained/resnet50_prid.pth'
+# # sequence_file = '../../dataset/prid/sequence_file/train001.txt'    # Train List
+# sequence_file = '../../dataset/prid/sequence_file/test001.txt'     # Test List
+
 batch_size = 1
-partition = 1
-experiment_name = "base"
+partition = 4
+experiment_name = "experiment"
 split = "test"
-output_path = '../../feature/input/'
+output_path = '../../features/input/'
 output_dir = os.path.join(output_path, dataset_name, experiment_name, split, ("partition_" + str(partition)))
 
 # ===================================================================================================
