@@ -64,7 +64,7 @@ class Evaluator():
         testlist1  = sorted(glob.glob(self.train_localfeat1_path+'/*.mat'))
         testlist2  = sorted(glob.glob(self.train_localfeat2_path+'/*.mat'))
         testlist4  = sorted(glob.glob(self.train_localfeat4_path+'/*.mat'))
-        test_num  = len(testlist1)
+        test_num  = len(testlist2)
         
         feat = np.zeros((test_num, self.n_features))
 

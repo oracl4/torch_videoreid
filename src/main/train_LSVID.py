@@ -20,7 +20,7 @@ import test_LSVID
 wandb_flag = True
 
 # CUDA Device
-cuda_device = torch.device("cuda:1")
+cuda_device = torch.device("cuda:0")
 
 # Training parameters
 learning_rate = 1e-6

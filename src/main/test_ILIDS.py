@@ -76,10 +76,10 @@ class Evaluator():
             glof[0,:,:] = gsf[i, 0:self.n_frames, :]
             
             # New
-            # glof = sio.loadmat(testlist1[i])
-            # glof = glof['feat']
-            # glof = np.expand_dims(glof, axis=0)
-            # glof = np.transpose(glof, (0, 2, 1))
+            glof = sio.loadmat(testlist1[i])
+            glof = glof['feat']
+            glof = np.expand_dims(glof, axis=0)
+            glof = np.transpose(glof, (0, 2, 1))
 
             # Prepare the local feature
             locf = np.zeros((self.batch_size, self.n_frames, self.n_partitions-1, self.n_features))

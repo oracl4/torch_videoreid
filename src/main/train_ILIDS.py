@@ -23,7 +23,7 @@ wandb_flag = True
 cuda_device = torch.device("cuda:0")
 
 # Training parameters
-learning_rate = 2e-6
+learning_rate = 2e-4
 n_epochs = 120
 batch_size = 1
 
@@ -38,15 +38,17 @@ n_cluster = 38      # Number of cluster (for compatibility matrix only ?)
 #### Mars Dataset
 dataset_name = "ILIDS"
 n_class = 142
-experiment_name = "previous_Featex"
+experiment_name = "NN_Parameter"
 
 # Global features path
-
 globalfeat_path = '../../features/input/ILIDS/previous/train/train_glofeat.mat'
 
+# New global features path
+localfeat1_path = '../../features/input/ILIDS/base/train/partition_1/'
+
 # Local features path
-localfeat2_path = '../../features/input/ILIDS/previous/train/train_split_2/'
-localfeat4_path = '../../features/input/ILIDS/previous/train/train_split_4/'
+localfeat2_path = '../../features/input/ILIDS/base/train/partition_2/'
+localfeat4_path = '../../features/input/ILIDS/base/train/partition_4/'
 
 # Evaluation path
 evaluation_path =  '../evaluation/ILIDS'
@@ -97,10 +99,11 @@ if not os.path.exists(tensorboard_dir):
 	os.makedirs(tensorboard_dir)
 
 # Load global features
-grf = sio.loadmat(globalfeat_path)
-grf = grf['glofeat']
+# grf = sio.loadmat(globalfeat_path)
+# grf = grf['glofeat']
 
 # Load the local features List
+trainlist1 = sorted(glob.glob(localfeat1_path+'/*.mat'))
 trainlist2 = sorted(glob.glob(localfeat2_path+'/*.mat'))
 trainlist4 = sorted(glob.glob(localfeat4_path+'/*.mat'))
 train_num = len(trainlist2)
@@ -141,7 +144,7 @@ raw_labels_ohe = raw_labels_ohe.astype('float')
 TrainingModel = Model(batch_size, n_features, n_hidden, n_class, n_frames, n_partitions, n_head, n_cluster, cuda_device)
 
 # Optimizer with L2 regularization
-optimizer = torch.optim.Adam(params=TrainingModel.parameters(), lr=learning_rate, weight_decay=1e-4)
+optimizer = torch.optim.Adam(params=TrainingModel.parameters(), lr=learning_rate, weight_decay=1e-5)
 
 # Learning rate scheduler
 LR_decayRate = 0.5
@@ -153,7 +156,7 @@ LR_Scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=10
 # Training Loop
 
 # Best test mAP
-best_mAP = 0.0
+best_eval = 0.0
 
 print("##########   Start Training")
 
@@ -177,7 +180,7 @@ for epoch in range(0, n_epochs+1):
         ix = n_batchs[batch:(batch+batch_size)]
 
         # Get the global features
-        glofeat = grf[ix, 0:n_frames, :]
+        # glofeat = grf[ix, 0:n_frames, :]
 
         # Get the local features by concatenating the features
         locfeat = np.zeros((batch_size, n_frames, n_partitions-1, n_features))
@@ -185,15 +188,21 @@ for epoch in range(0, n_epochs+1):
         k = 0
         for idx in ix:
 
+            # Get the global features
+            glofeat = sio.loadmat(trainlist1[idx])
+            glofeat = glofeat['feat']
+            glofeat = np.expand_dims(glofeat, axis=0)
+            glofeat = np.transpose(glofeat, (0, 2, 1))  # Comment this for previous feature
+
             # Local features pool2
             featl2 = sio.loadmat(trainlist2[idx])
             featl2 = featl2['feat']
-            # featl2 = np.transpose(featl2, (2, 0, 1))  # Comment this for previous feature
+            featl2 = np.transpose(featl2, (2, 0, 1))    # Comment this for previous feature
 
             # Local features pool4
             featl4 = sio.loadmat(trainlist4[idx])
             featl4 = featl4['feat']
-            # featl4 = np.transpose(featl4, (2, 0, 1))  # Comment this for previous feature
+            featl4 = np.transpose(featl4, (2, 0, 1))    # Comment this for previous feature
 
             # Concatenate the features
             featl = np.concatenate([featl2, featl4],axis = 1)
@@ -279,9 +288,9 @@ for epoch in range(0, n_epochs+1):
             })
 
         # Save the best model if test accuracy is increased
-        if R1 > best_mAP:
+        if R1 > best_eval:
             torch.save(TrainingModel, best_out_path)
-            best_mAP = R1
+            best_eval = R1
         
         # Change to Training Mode
         TrainingModel.train()

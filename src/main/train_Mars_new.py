@@ -17,10 +17,10 @@ import test_Mars
 # All parameter, change before training
 
 # WanDB logging
-wandb_flag = False
+wandb_flag = True
 
 # CUDA Device
-cuda_device = torch.device("cuda:0")
+cuda_device = torch.device("cuda:1")
 
 # Training parameters
 learning_rate = 0.000002
@@ -147,7 +147,7 @@ for i in range(0, gt.shape[0]):
 TrainingModel = Model(batch_size, n_features, n_hidden, n_class, n_frames, n_partitions, n_head, n_cluster, cuda_device)
 
 # Optimizer with L2 regularization
-optimizer = torch.optim.Adam(params=TrainingModel.parameters(), lr=learning_rate, weight_decay=1e-4)
+optimizer = torch.optim.Adam(params=TrainingModel.parameters(), lr=learning_rate, weight_decay=1e-5)
 
 # Learning rate scheduler
 LR_decayRate = 0.5

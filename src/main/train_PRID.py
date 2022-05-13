@@ -38,7 +38,7 @@ n_cluster = 38      # Number of cluster (for compatibility matrix only ?)
 #### Mars Dataset
 dataset_name = "PRID"
 n_class = 89
-experiment_name = "TestingFunction"
+experiment_name = "NN_Parameter"
 
 # Global features path
 globalfeat_path = '../../features/input/PRID/previous/train/train_glofeat.mat'
@@ -144,11 +144,11 @@ raw_labels_ohe = raw_labels_ohe.astype('float')
 TrainingModel = Model(batch_size, n_features, n_hidden, n_class, n_frames, n_partitions, n_head, n_cluster, cuda_device)
 
 # Optimizer with L2 regularization
-optimizer = torch.optim.Adam(params=TrainingModel.parameters(), lr=learning_rate, weight_decay=1e-4)
+optimizer = torch.optim.Adam(params=TrainingModel.parameters(), lr=learning_rate, weight_decay=1e-5)
 
 # Learning rate scheduler
 LR_decayRate = 0.5
-LR_Scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=50, gamma=LR_decayRate)
+LR_Scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=100, gamma=LR_decayRate)
 
 print(TrainingModel)
 

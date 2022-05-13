@@ -44,16 +44,28 @@ class Model(nn.Module):
         
         # Graph linear embedddings
         self.weights = {
-            'inp1' : Variable(torch.empty(n_features, n_hidden).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device),
-            'inp2' : Variable(torch.empty(n_features, n_hidden).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device),
-            'out1' : Variable(torch.empty(1*n_features, n_class).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device)
+            'inp1' : nn.Parameter(torch.empty(n_features, n_hidden).normal_(mean=0.0, std=0.01)).to(self.device),
+            'inp2' : nn.Parameter(torch.empty(n_features, n_hidden).normal_(mean=0.0, std=0.01)).to(self.device),
+            'out1' : nn.Parameter(torch.empty(1*n_features, n_class).normal_(mean=0.0, std=0.01).to(self.device))
         }
-        
+
         self.biases = {
-            'inp1' : Variable(torch.empty(n_hidden).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device),
-            'inp2' : Variable(torch.empty(n_hidden).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device),
-            'out1' : Variable(torch.empty(n_class).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device)
+            'inp1' : nn.Parameter(torch.empty(n_hidden).normal_(mean=0.0, std=0.01)).to(self.device),
+            'inp2' : nn.Parameter(torch.empty(n_hidden).normal_(mean=0.0, std=0.01)).to(self.device),
+            'out1' : nn.Parameter(torch.empty(n_class).normal_(mean=0.0, std=0.01).to(self.device))
         }
+
+        # self.weights = {
+        #     'inp1' : Variable(torch.empty(n_features, n_hidden).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device),
+        #     'inp2' : Variable(torch.empty(n_features, n_hidden).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device),
+        #     'out1' : Variable(torch.empty(1*n_features, n_class).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device)
+        # }
+        
+        # self.biases = {
+        #     'inp1' : Variable(torch.empty(n_hidden).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device),
+        #     'inp2' : Variable(torch.empty(n_hidden).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device),
+        #     'out1' : Variable(torch.empty(n_class).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device)
+        # }
         
     def forward(self, global_features, local_features, labels, labels_ohe):
         """
@@ -77,8 +89,7 @@ class Model(nn.Module):
         for i in range(0, self.batch_size):
             
             # Conconcatenate the global and local features
-            multiscale_embed = torch.cat((local_features[i,:,:,:],
-                                          emb_global[i,:,:,:]), dim=1)
+            multiscale_embed = torch.cat((local_features[i,:,:,:], emb_global[i,:,:,:]), dim=1)
             
             # Forward to self-attention with CRF layer
             cluster_features, CRF_Loss, sa_features = self.CRF_Module(multiscale_embed.float(), labels_ohe[i, 0, :])

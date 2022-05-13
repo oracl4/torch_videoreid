@@ -38,11 +38,8 @@ class CRF_SelfAttention(nn.Module):
         self.max_iterations = 2
 
         # Compatibility matrix > identity matrix with n_cluster x n_cluster
-        self.compatibility_matrix = -(torch.eye(self.n_cluster,
-                                              dtype=torch.float32,
-                                              requires_grad=True,
-                                              device=self.device
-                                              )
+        self.compatibility_matrix = nn.Parameter(
+                                        -(torch.eye(self.n_cluster, dtype=torch.float32))
         )
 
         # Unary energy calculation layer
@@ -55,6 +52,7 @@ class CRF_SelfAttention(nn.Module):
         ### Message Passing Layer
 
         # Temporal attention (multiple multihead self-attention layer) based on temporal locality
+        self.multihead_attn_scalex = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1) # Testing
         self.multihead_attn_scale2 = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1)
         self.multihead_attn_scale4 = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1)
         self.multihead_attn_scale6 = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1)
@@ -153,7 +151,7 @@ class CRF_SelfAttention(nn.Module):
             soft_attention = torch.cat(torch.chunk(group2, scale, dim=0), dim=1)
             
             # Forward through multihead attention
-            multi_g, _ = self.multihead_attn_scale2(soft_attention, soft_attention, soft_attention)
+            multi_g, _ = self.multihead_attn_scale4(soft_attention, soft_attention, soft_attention)
             
             multi_g = torch.cat(torch.chunk(multi_g, scale, dim=1), dim=0)
             
@@ -184,7 +182,7 @@ class CRF_SelfAttention(nn.Module):
             soft_attention = torch.cat(torch.chunk(group2, scale, dim=0), dim=1)
             
             # Forward through multihead attention
-            multi_g, _ = self.multihead_attn_scale2(soft_attention, soft_attention, soft_attention)
+            multi_g, _ = self.multihead_attn_scale6(soft_attention, soft_attention, soft_attention)
             
             multi_g = torch.cat(torch.chunk(multi_g, scale, dim=1), dim=0)
             
@@ -232,8 +230,8 @@ class CRF_SelfAttention(nn.Module):
         # the module
 
         # Temporal self-attention
-        pairwise = self.temporal_attention(multiscale_embed, adjacency)
-        pairwise = pairwise.permute(1, 0, 2)
+        temporal = self.temporal_attention(multiscale_embed, adjacency)
+        pairwise = temporal.permute(1, 0, 2)
         pairwise = self.message_passing_linear(pairwise)
         
         return pairwise
@@ -362,6 +360,7 @@ class CRF_SelfAttention(nn.Module):
         # Perform mean-field inference iteration
         # Until max iteration reached or halting probability flag occured
         while True:
+
             # Compute the halting probability
             # Equation 4 / Equation 12 on Group Activity Paper
             p, ptn, Rt, Nt, new_halted, run = self.halting_probability(multiscale_embed, ptn, Rt, Nt)
@@ -402,6 +401,7 @@ class CRF_SelfAttention(nn.Module):
         
         # TODO: Calculate the contrastive loss
         # contrastive_loss = self.contrastive_loss(marginal, context)
+        contrastive_loss = 0
         
         # Compute clusters features
         classes, cluster_features = self.calculate_cluster_features(marginal, context)
@@ -414,6 +414,7 @@ class CRF_SelfAttention(nn.Module):
         CELoss = (CrossEntropyLoss(classes, labels[None,]))
         
         # Combine the loss
-        CRF_Loss =  0.5*CELoss + (0.0005 * act_loss)
+        CRF_Loss = 0.1*(contrastive_loss + CELoss)
+        CRF_Loss = CRF_Loss + (0.001*act_loss)
         
         return cluster_features, CRF_Loss, context
