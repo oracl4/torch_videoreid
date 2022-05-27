@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 
+from module.mhsa import MultiHeadSelfAttention
+
 class CRF_SelfAttention(nn.Module):
     """
     PyTorch implementation of the Self-Attention CRF-RNN Module
@@ -49,21 +51,24 @@ class CRF_SelfAttention(nn.Module):
         self.halting_linear = nn.Linear(self.n_features, 1)
         self.halting_linear.bias.data.fill_(1.0) # Bias initialization
 
-        ### Message Passing Layer
+        # Temporal attention Layer
+        # Multiple self-attention layer based on temporal locality
 
-        # Temporal attention (multiple multihead self-attention layer) based on temporal locality
-        self.multihead_attn_scalex = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1) # Testing
-        self.multihead_attn_scale2 = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1)
-        self.multihead_attn_scale4 = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1)
-        self.multihead_attn_scale6 = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1)
-        
+        # self.multihead_attn_scalex = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1)
+        # self.multihead_attn_scale2 = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1)
+        # self.multihead_attn_scale4 = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1)
+        # self.multihead_attn_scale6 = nn.MultiheadAttention(embed_dim=self.n_hidden, num_heads=self.n_head, dropout=0.1)
+
+        self.multihead_attn_scale2 = MultiHeadSelfAttention(dim=self.n_hidden, heads=self.n_head, device=self.device)
+        self.multihead_attn_scale4 = MultiHeadSelfAttention(dim=self.n_hidden, heads=self.n_head, device=self.device)
+        self.multihead_attn_scale6 = MultiHeadSelfAttention(dim=self.n_hidden, heads=self.n_head, device=self.device)
+
         # Linear layer in message passing
         self.message_passing_linear = nn.Linear(self.n_features, self.n_cluster)
 
         # CLuster features linear layer
         self.cluster_features_linear = nn.Linear(self.n_features, self.n_class)
-
-    # Not used for this version        
+    
     def adjacency(self, adj=None):
         """
         Adjacency between the two partitions at all frames
@@ -76,6 +81,38 @@ class CRF_SelfAttention(nn.Module):
         if not adj:
             adjacency = torch.ones((self.n_partitions*self.n_frames, self.n_partitions*self.n_frames))
         return adjacency
+    
+    def temporal_locality(self, scale, mhsa, embedding, adjacency, norm_scale):
+
+        gval = torch.zeros([0, self.n_partitions, self.n_hidden]).to(self.device)
+        
+        for ind in range(0, (self.n_frames-scale+1)):
+            
+            # Create cliques
+            st = ind
+            et = ind + scale
+            
+            # Select the features from ind to ind + scale (temporal frame)
+            group2 = embedding[st:et, :, :]
+            adj = adjacency[(st*self.n_partitions):(et*self.n_partitions), (st*self.n_partitions):(et*self.n_partitions)]
+
+            soft_attention = torch.cat(torch.chunk(group2, scale, dim=0), dim=1)
+            
+            # Forward through multihead attention
+            # multi_g, _ = self.multihead_attn_scale2(soft_attention, soft_attention, soft_attention)
+            multi_g = mhsa(soft_attention, adj)
+            
+            multi_g = torch.cat(torch.chunk(multi_g, scale, dim=1), dim=0)
+            
+            if ind == 0:
+                gval = torch.cat([gval, multi_g], dim=0) # scales, n_size, n_hidden
+            else:
+                gvalt = torch.cat([(torch.zeros([ind, self.n_partitions, self.n_hidden]).to(self.device)), multi_g], dim=0)
+                gval = torch.cat([gval, (torch.zeros([1, self.n_partitions, self.n_hidden]).to(self.device))], dim=0)
+                gval = gval + gvalt
+        
+        return torch.divide(gval, norm_scale) 
+        
     
     def temporal_attention(self, embedding, adjacency):
         """
@@ -97,104 +134,14 @@ class CRF_SelfAttention(nn.Module):
         
         # Initial value
         gaccum = torch.zeros_like(embedding).to(self.device)
-        
-        # Multiscale part features
-        group1 = embedding
 
-        ############# Temporal Locality Scale 2 #############
-        scale = 2
-        gval = torch.zeros([0, self.n_partitions, self.n_hidden]).to(self.device)
-        
-        for ind in range(0, (self.n_frames-scale+1)):
-            
-            # Create cliques
-            st = ind
-            et = ind + scale
-            
-            # Select the features from ind to ind + scale (temporal frame)
-            group2 = group1[st:et, :, :]
-            adj = adjacency[(st*self.n_partitions):(et*self.n_partitions), (st*self.n_partitions):(et*self.n_partitions)]
-            
-            # Need to confirm the chunk operation on rizard code
-            soft_attention = torch.cat(torch.chunk(group2, scale, dim=0), dim=1)
-            
-            # Forward through multihead attention
-            multi_g, _ = self.multihead_attn_scale2(soft_attention, soft_attention, soft_attention)
-            
-            multi_g = torch.cat(torch.chunk(multi_g, scale, dim=1), dim=0)
-            
-            if ind == 0:
-                gval = torch.cat([gval, multi_g], dim=0) # scales, n_size, n_hidden
-            else:
-                gvalt = torch.cat([(torch.zeros([ind, self.n_partitions, self.n_hidden]).to(self.device)), multi_g], dim=0)
-                gval = torch.cat([gval, (torch.zeros([1, self.n_partitions, self.n_hidden]).to(self.device))], dim=0)
-                gval = gval + gvalt
+        # Different temporal locality
+        gval_2 = self.temporal_locality(2, self.multihead_attn_scale2, embedding, adjacency, norm_scale_2d)
+        gval_4 = self.temporal_locality(4, self.multihead_attn_scale4, embedding, adjacency, norm_scale_4d)
+        gval_6 = self.temporal_locality(6, self.multihead_attn_scale6, embedding, adjacency, norm_scale_6d)
         
         # Accumulate self-attention outputs
-        gaccum = gaccum + torch.divide(gval, norm_scale_2d) 
-        
-        ############# Temporal Locality Scale 4 #############
-        scale = 4
-        gval = torch.zeros([0, self.n_partitions, self.n_hidden]).to(self.device)
-        
-        for ind in range(0, (self.n_frames-scale+1)):
-            
-            # Create cliques
-            st = ind
-            et = ind + scale
-            
-            # Select the features from ind to ind + scale (temporal frame)
-            group2 = group1[st:et, :, :]
-            adj = adjacency[(st*self.n_partitions):(et*self.n_partitions), (st*self.n_partitions):(et*self.n_partitions)]
-            
-            # Need to confirm the chunk operation on rizard code
-            soft_attention = torch.cat(torch.chunk(group2, scale, dim=0), dim=1)
-            
-            # Forward through multihead attention
-            multi_g, _ = self.multihead_attn_scale4(soft_attention, soft_attention, soft_attention)
-            
-            multi_g = torch.cat(torch.chunk(multi_g, scale, dim=1), dim=0)
-            
-            if ind == 0:
-                gval = torch.cat([gval, multi_g], dim=0) # scales, n_size, n_hidden
-            else:
-                gvalt = torch.cat([(torch.zeros([ind, self.n_partitions, self.n_hidden]).to(self.device)), multi_g], dim=0)
-                gval = torch.cat([gval, (torch.zeros([1, self.n_partitions, self.n_hidden]).to(self.device))], dim=0)
-                gval = gval + gvalt
-        
-        # Accumulate self-attention outputs
-        gaccum = gaccum + torch.divide(gval, norm_scale_4d)
-        
-        ############# Temporal Locality Scale 6 #############
-        scale = 6
-        gval = torch.zeros([0, self.n_partitions, self.n_hidden]).to(self.device)
-        
-        for ind in range(0, (self.n_frames-scale+1)):
-            
-            # Create cliques
-            st = ind
-            et = ind + scale
-            
-            # Select the features from ind to ind + scale (temporal frame)
-            group2 = group1[st:et, :, :]
-            adj = adjacency[(st*self.n_partitions):(et*self.n_partitions), (st*self.n_partitions):(et*self.n_partitions)]
-
-            soft_attention = torch.cat(torch.chunk(group2, scale, dim=0), dim=1)
-            
-            # Forward through multihead attention
-            multi_g, _ = self.multihead_attn_scale6(soft_attention, soft_attention, soft_attention)
-            
-            multi_g = torch.cat(torch.chunk(multi_g, scale, dim=1), dim=0)
-            
-            if ind == 0:
-                gval = torch.cat([gval, multi_g], dim=0) # scales, n_size, n_hidden
-            else:
-                gvalt = torch.cat([(torch.zeros([ind, self.n_partitions, self.n_hidden]).to(self.device)), multi_g], dim=0)
-                gval = torch.cat([gval, (torch.zeros([1, self.n_partitions, self.n_hidden]).to(self.device))], dim=0)
-                gval = gval + gvalt
-        
-        # Accumulate self-attention outputs
-        gaccum = gaccum + torch.divide(gval, norm_scale_6d)
+        gaccum = gaccum + gval_2 + gval_4 + gval_6
         
         # Return the accumulation of self-attention at different temporal locality scales
         return 0.25*gaccum
@@ -222,12 +169,8 @@ class CRF_SelfAttention(nn.Module):
             multiscale_embed:   Multiscale embedding from global and local features
         """
         
-        # Find adjacency
+        # Define Adjacency
         adjacency = self.adjacency()
-
-        # !! For now the adjacency isn't used because the adjacency is
-        # used inside the multihead self-attention so we need to change
-        # the module
 
         # Temporal self-attention
         temporal = self.temporal_attention(multiscale_embed, adjacency)

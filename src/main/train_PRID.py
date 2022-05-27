@@ -17,7 +17,7 @@ import test_PRID
 # All parameter, change before training
 
 # WanDB logging
-wandb_flag = True
+wandb_flag = False
 
 # CUDA Device
 cuda_device = torch.device("cuda:1")
@@ -31,7 +31,7 @@ batch_size = 1
 n_features = 512    # Number of features from feature extractor
 n_hidden = 512      # hidden layer num of LSTM
 n_frames = 18       # Number of temporal frames
-n_partitions = 7    # Number of partitions / spatial frames (4 Local Pooling + 2 Local Pooling + 1 Global Pooling)
+n_partitions = 7    # Number of partitions / spatial frames (4 Local Pooling + 2 Local Pooling + 1 Global Pooling)  
 n_head = 8          # Number of self-attention head
 n_cluster = 38      # Number of cluster (for compatibility matrix only ?)
 

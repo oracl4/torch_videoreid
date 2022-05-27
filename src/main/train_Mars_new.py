@@ -20,7 +20,7 @@ import test_Mars
 wandb_flag = True
 
 # CUDA Device
-cuda_device = torch.device("cuda:1")
+cuda_device = torch.device("cuda:0")
 
 # Training parameters
 learning_rate = 0.000002
@@ -38,7 +38,7 @@ n_cluster = 38      # Number of cluster (for compatibility matrix only ?)
 #### Mars Dataset
 dataset_name = "Mars"
 n_class = 625
-experiment_name = "Testing"
+experiment_name = "PEAM"
 
 # Global features path
 globalfeat_path = '../../features/input/Mars/previous/train/trainlocfeatfix.mat'
