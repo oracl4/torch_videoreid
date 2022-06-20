@@ -17,7 +17,6 @@ class Evaluator():
         
         # CUDA Device
         self.device = device
-
         self.model = model
         self.dataset_name = dataset_name
         self.epoch = epoch
@@ -28,13 +27,17 @@ class Evaluator():
         self.n_frames = n_frames
         self.n_partitions = n_partitions
         
+        # OLD
         # Global features path
         # self.globalfeat_path = '../../features/input/LSVID/previous/test/test_glofeat.mat'
-
+        # self.localfeat2_path = '../../features/input/LSVID/previous/test/test_split_2/'
+        # self.localfeat4_path = '../../features/input/LSVID/previous/test/test_split_4/'
+        
+        # NEW
         # Local features path
-        self.localfeat1_path = '../../features/input/LSVID/base/test/partition_1/'
-        self.localfeat2_path = '../../features/input/LSVID/base/test/partition_2/'
-        self.localfeat4_path = '../../features/input/LSVID/base/test/partition_4/'
+        self.localfeat1_path = '../../features/input/LSVID/trained_featex/test/partition_1/'
+        self.localfeat2_path = '../../features/input/LSVID/trained_featex/test/partition_2/'
+        self.localfeat4_path = '../../features/input/LSVID/trained_featex/test/partition_4/'
 
         # Output features path
         self.output_features_dir = '../../features/output/' + dataset_name + "/" + experiment_name + "/"
@@ -52,7 +55,7 @@ class Evaluator():
         print("##########   Extracting Test Features")
 
         # Find the Test Set
-        testlist1  = sorted(glob.glob(self.localfeat1_path+'/*.mat'))
+        testlist1  = sorted(glob.glob(self.localfeat1_path+'/*.mat')) # New
         testlist2  = sorted(glob.glob(self.localfeat2_path+'/*.mat'))
         testlist4  = sorted(glob.glob(self.localfeat4_path+'/*.mat'))
         test_num  = len(testlist2)
@@ -65,10 +68,12 @@ class Evaluator():
 
         for i in tqdm(range(0, test_num)):
             
+            # OLD
             # Select the global feature
             # glof = np.zeros((self.batch_size, self.n_frames, self.n_features))
             # glof[0,:,:] = gsf[i, 0:self.n_frames, :]
             
+            # NEW
             # Get the global features
             glof = sio.loadmat(testlist1[i])
             glof = glof['feat']

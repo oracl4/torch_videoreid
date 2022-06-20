@@ -49,9 +49,6 @@ class Model(nn.Module):
         # Graph representation layer
         self.graph_linear = nn.Linear(n_features*2, n_hidden).to(self.device)
         self.graph_dropout = nn.Dropout(p=self.dropout).to(self.device)
-        
-        # Linear Classifier
-        self.linear_classifier = nn.Linear(n_features, n_class).to(self.device)
 
         # Graph linear embedddings
         # self.weights = {
@@ -65,6 +62,9 @@ class Model(nn.Module):
         #     'inp2' : nn.Parameter(torch.empty(n_hidden).normal_(mean=0.0, std=0.01)).to(self.device),
         #     'out1' : nn.Parameter(torch.empty(n_class).normal_(mean=0.0, std=0.01).to(self.device))
         # }
+
+        # Linear Classifier
+        self.linear_classifier = nn.Linear(n_features, n_class).to(self.device)
 
         # self.weights = {
         #     'inp1' : Variable(torch.empty(n_features, n_hidden).normal_(mean=0.0, std=0.01), requires_grad=True).to(self.device),
@@ -133,8 +133,10 @@ class Model(nn.Module):
         zc = torch.squeeze(torch.cat(torch.chunk(labels, self.n_frames, dim=1), dim=0))
         
         # Linear classifier
+        
         # class_output = torch.matmul(xemg, self.weights['out1']) + self.biases['out1']
         class_output = self.linear_classifier(xemg)
+        
         # print(class_output.shape)
 
         # Calculate graph loss

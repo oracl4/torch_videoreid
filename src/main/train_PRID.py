@@ -17,13 +17,13 @@ import test_PRID
 # All parameter, change before training
 
 # WanDB logging
-wandb_flag = False
+wandb_flag = True
 
 # CUDA Device
 cuda_device = torch.device("cuda:1")
 
 # Training parameters
-learning_rate = 2e-4
+learning_rate = 0.000002
 n_epochs = 120
 batch_size = 1
 
@@ -262,7 +262,7 @@ for epoch in range(0, n_epochs+1):
         })
     
     # Evaluation and saving model
-    if((epoch) % 5 == 0):
+    if((epoch) % 10 == 0):
         
         # Save the Model
         model_out_path = model_dir + "/model_epoch_" + str(epoch) + ".pth"

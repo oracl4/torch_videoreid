@@ -23,7 +23,7 @@ wandb_flag = True
 cuda_device = torch.device("cuda:0")
 
 # Training parameters
-learning_rate = 2e-4
+learning_rate = 0.000002
 n_epochs = 120
 batch_size = 1
 
@@ -98,10 +98,6 @@ if not os.path.exists(model_dir):
 if not os.path.exists(tensorboard_dir):
 	os.makedirs(tensorboard_dir)
 
-# Load global features
-# grf = sio.loadmat(globalfeat_path)
-# grf = grf['glofeat']
-
 # Load the local features List
 trainlist1 = sorted(glob.glob(localfeat1_path+'/*.mat'))
 trainlist2 = sorted(glob.glob(localfeat2_path+'/*.mat'))
@@ -150,7 +146,7 @@ optimizer = torch.optim.Adam(params=TrainingModel.parameters(), lr=learning_rate
 LR_decayRate = 0.5
 LR_Scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=100, gamma=LR_decayRate)
 
-# print(TrainingModel)
+print(TrainingModel)
 
 # ===================================================================================================
 # Training Loop

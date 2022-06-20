@@ -46,7 +46,8 @@ class videodataset(data.Dataset):
 				im_path = image_list[i%len(image_list)]
 				im_paths.append(im_path)
 
-		print(im_paths)
+		# print(im_paths)
+		
 		frames = []
 
 		for im_path in im_paths:

@@ -20,10 +20,10 @@ import test_LSVID
 wandb_flag = True
 
 # CUDA Device
-cuda_device = torch.device("cuda:0")
+cuda_device = torch.device("cuda:1")
 
 # Training parameters
-learning_rate = 1e-6
+learning_rate = 0.0002
 n_epochs = 120
 batch_size = 1
 
@@ -38,17 +38,17 @@ n_cluster = 38      # Number of cluster (for compatibility matrix only ?)
 #### Mars Dataset
 dataset_name = "LSVID"
 n_class = 1042
-experiment_name = "TrainNewFeature"
+experiment_name = "trained_featex"
 
 # Global features path
-globalfeat_path = '../../features/input/LSVID/previous/trainval/trainval_glofeat.mat'
+# globalfeat_path = '../../features/input/LSVID/previous/trainval/trainval_glofeat.mat'
 
 # New global features path
-localfeat1_path = '../../features/input/LSVID/base/train/partition_1/'
+localfeat1_path = '../../features/input/LSVID/trained_featex/train/partition_1/'
 
 # Local features path
-localfeat2_path = '../../features/input/LSVID/base/train/partition_2/'
-localfeat4_path = '../../features/input/LSVID/base/train/partition_4/'
+localfeat2_path = '../../features/input/LSVID/trained_featex/train/partition_2/'
+localfeat4_path = '../../features/input/LSVID/trained_featex/train/partition_4/'
 
 # Evaluation path
 evaluation_path =  '../evaluation/LSVID/'
@@ -101,11 +101,7 @@ if not os.path.exists(model_dir):
 if not os.path.exists(tensorboard_dir):
 	os.makedirs(tensorboard_dir)
 
-# Load global features
-grf = sio.loadmat(globalfeat_path)
-grf = grf['glofeat']
-
-# Load the local features List
+# Load the features List
 trainlist1 = sorted(glob.glob(localfeat1_path+'/*.mat'))
 trainlist2 = sorted(glob.glob(localfeat2_path+'/*.mat'))
 trainlist4 = sorted(glob.glob(localfeat4_path+'/*.mat'))
@@ -168,9 +164,6 @@ for epoch in range(0, n_epochs+1):
 
         # Get the idx based on the batch size
         ix = n_batchs[batch:(batch+batch_size)]
-
-        # Get the global features
-        # glofeat = grf[ix, 0:n_frames, :]
 
         # Get the local features by concatenating the features
         locfeat = np.zeros((batch_size, n_frames, n_partitions-1, n_features))

@@ -213,19 +213,19 @@ class ResNet(nn.Module):
         # print(x4_combined.shape)
         
         if self.istrain:
-            x = self.feat_bn(x)
-            x = self.relu(x)
-            x = self.drop(x)
-            x = self.classifier(x)
+            x_combined = self.feat_bn(x_combined)
+            x_combined = self.relu(x_combined)
+            x_combined = self.drop(x_combined)
+            x_combined = self.classifier(x_combined)
 
         return x_combined, x4_combined
-
+        
 def resnet50(pretrained='True', num_classes=1000, train=True, partition=1):
     
     model = ResNet(Bottleneck, [3, 4, 6, 3], num_classes, train, partition=partition)
 
-    #if pretrained:
-    #	model.load_state_dict('resnet50-19c8e357.pth')
+    # if pretrained:
+    # 	model.load_state_dict('resnet50-19c8e357.pth')
 
     weight = torch.load(pretrained)
     static = model.state_dict()
@@ -247,10 +247,10 @@ def resnet50(pretrained='True', num_classes=1000, train=True, partition=1):
 
     for name, param in weight.items():
         if name not in static:
-            print('not load weight ', name)
+            # print('not load weight ', name)
             continue
         if isinstance(param, nn.Parameter):
-            print('load weight ', name, type(param))
+            # print('load weight ', name, type(param))
             param = param.data
             static[name].copy_(param)
 
@@ -259,6 +259,7 @@ def resnet50(pretrained='True', num_classes=1000, train=True, partition=1):
     new_param = []
     for name, param in static.items():
         if name not in weight:
-            print('new param ', name)
+            # print('new param ', name)
             new_param.append(name)
+    
     return model, new_param
