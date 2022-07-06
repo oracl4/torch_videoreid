@@ -18,13 +18,11 @@ class videodataset(data.Dataset):
 			self.label_list = [int(i.split()[1]) for i in line]
 
 	def __getitem__(self, index):
+		
 		im_dir = self.img_list[index]
-		
-		# print(im_dir)
-		image_list = glob.glob(im_dir) # ilids, mars
-		#image_list = glob.glob(im_dir+"/*.png") # prid
-		#print(image_list)
-		
+
+		image_list = glob.glob(im_dir) 			# ilids, mars
+		# image_list = glob.glob(im_dir+"/*.png") 	# prid
 		image_list.sort()
 		
 		images = []
@@ -42,33 +40,33 @@ class videodataset(data.Dataset):
 				im_path = image_list[i]
 				im_paths.append(im_path)
 		else:
-			for i in range(0,self.frames):
+			for i in range(0, self.frames):
 				im_path = image_list[i%len(image_list)]
 				im_paths.append(im_path)
 
+		# print("Single Sequence")
 		# print(im_paths)
+		# print("")
 		
 		frames = []
 
 		for im_path in im_paths:
+			
 			image = cv2.imread(im_path)
 
 			# pro = random.randint(0,10)
 			# if pro>=5:
-			# 	image = cv2.flip(image,1)
+			# 	image = cv2.flip(image, 1)
 
 			image = cv2.resize(image,(self.new_width, self.new_height))
-			image = image[:,:, ::-1]
+			image = image[:, :, ::-1]
+			
 			image = self.transform(image.copy())
-
-			# print(image.size())
 			frames.append(image.numpy())
 
 		frames = np.array(frames, np.float32)
-		#print(np.shape(frames))
 		frames = np.transpose(frames, (1, 0, 2, 3))
 		frames = torch.from_numpy(frames).float()
-		#print(type(frames), frames.size())
 
 		label = self.label_list[index]
 		return frames, label

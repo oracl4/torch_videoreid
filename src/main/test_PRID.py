@@ -28,21 +28,10 @@ class Evaluator():
         self.n_frames = n_frames
         self.n_partitions = n_partitions
         
-        # OLD
-        self.globalfeat_path = '../../features/input/PRID/previous/test/test_glofeat.mat'
-        self.test_localfeat1_path = '../../features/input/PRID/base/test/partition_1/'
-        self.test_localfeat2_path = '../../features/input/PRID/previous/test/test_split_2/'
-        self.test_localfeat4_path = '../../features/input/PRID/previous/test/test_split_4/'
-
-        # Features Path Train
-        self.train_localfeat1_path = '../../features/input/PRID/base/train/partition_1/'
-        self.train_localfeat2_path = '../../features/input/PRID/base/train/partition_2/'
-        self.train_localfeat4_path = '../../features/input/PRID/base/train/partition_4/'
-
-        # Features Path Test
-        # self.test_localfeat1_path = '../../features/input/PRID/base/test/partition_1/'
-        # self.test_localfeat2_path = '../../features/input/PRID/base/test/partition_2/'
-        # self.test_localfeat4_path = '../../features/input/PRID/base/test/partition_4/'
+        # Features Path
+        self.localfeat1_path = '../../features/input/PRID/hope/test/split_1/'
+        self.localfeat2_path = '../../features/input/PRID/hope/test/split_2/'
+        self.localfeat4_path = '../../features/input/PRID/hope/test/split_4//'
 
         # Output features path
         self.output_features_dir = '../../features/output/' + dataset_name + "/" + experiment_name + "/"
@@ -57,105 +46,22 @@ class Evaluator():
     
     def get_evaluation(self):
 
-        print("##########   Extracting Train Features")
-
-        # Find the Test Set
-        testlist1  = sorted(glob.glob(self.train_localfeat1_path+'/*.mat'))
-        testlist2  = sorted(glob.glob(self.train_localfeat2_path+'/*.mat'))
-        testlist4  = sorted(glob.glob(self.train_localfeat4_path+'/*.mat'))
-        test_num  = len(testlist2)
-        
-        feat = np.zeros((test_num, self.n_features))
-
-        # Load the whole global feature
-        # gsf = sio.loadmat(self.globalfeat_path)
-        # gsf = gsf['glofeat']
-
-        for i in tqdm(range(0, test_num)):
-            
-            # Select the global feature
-            # glof = np.zeros((self.batch_size, self.n_frames, self.n_features))
-            # glof[0,:,:] = gsf[i, 0:self.n_frames, :]
-
-            # Prepare the global feature
-            glof = sio.loadmat(testlist1[i])
-            glof = glof['feat']
-            glof = np.expand_dims(glof, axis=0)
-            glof = np.transpose(glof, (0, 2, 1))
-            
-            # Prepare the local feature
-            locf = np.zeros((self.batch_size, self.n_frames, self.n_partitions-1, self.n_features))
-            
-            # Load the 2 partition local feature
-            featl2 = sio.loadmat(testlist2[i])
-            featl2 = featl2['feat']
-            featl2 = np.transpose(featl2, (2, 0, 1))    # Comment this for previous feature
-            
-            # Load the 4 partition local feature
-            featl4 = sio.loadmat(testlist4[i])
-            featl4 = featl4['feat']
-            featl4 = np.transpose(featl4, (2, 0, 1))    # Comment this for previous feature
-            
-            # Combine the local feature
-            featl = np.concatenate([featl2, featl4],axis = 1)
-            locf[0,:,:,:] = featl
-            
-            # Convert feature to torch tensor
-            glof = torch.from_numpy(glof).to(self.device)
-            locf = torch.from_numpy(locf).to(self.device)
-            
-            # Dummy label
-            labels_input = torch.zeros(self.batch_size, self.n_frames, 1).to(self.device)
-            labels_ohe_input = torch.zeros(self.batch_size, self.n_frames, self.n_class).to(self.device)
-            
-            # Feed forward to the model
-            feature, CRF_Loss_Batch, Loss = self.model(glof, locf, labels_input, labels_ohe_input)
-            
-            # Insert the feature to test feature list
-            feat[i,:] = feature[0,:].cpu().data.numpy()
-
-        # # Save the output features
-        sio.savemat(self.output_features_path, {"feat": feat}, do_compression=False)
-        
-        print("##########   Calling evaluation Function")
-
-        # Call the octave function
-        octave.addpath(self.evaluation_dir)
-        octave.addpath(os.path.join(self.evaluation_dir, "data"))
-        octave.eval("pkg load statistics")
-        
-        print("Performing evaluation on test features")
-        print("Test features : ", self.output_features_path)
-
-        Train_R1, Train_R5, Train_R20 = octave.eval_func(self.output_features_path, nout=3)
-        
-        print("##########")
-
         print("##########   Extracting Test Features")
 
         # Find the Test Set
-        testlist1  = sorted(glob.glob(self.test_localfeat1_path+'/*.mat'))
-        testlist2  = sorted(glob.glob(self.test_localfeat2_path+'/*.mat'))
-        testlist4  = sorted(glob.glob(self.test_localfeat4_path+'/*.mat'))
+        testlist1  = sorted(glob.glob(self.localfeat1_path+'/*.mat'))
+        testlist2  = sorted(glob.glob(self.localfeat2_path+'/*.mat'))
+        testlist4  = sorted(glob.glob(self.localfeat4_path+'/*.mat'))
         test_num  = len(testlist1)
 
         feat = np.zeros((test_num, self.n_features))
 
-        # Load the whole global feature
-        gsf = sio.loadmat(self.globalfeat_path)
-        gsf = gsf['glofeat']
-
         for i in tqdm(range(0, test_num)):
             
-            # Select the global feature
-            glof = np.zeros((self.batch_size, self.n_frames, self.n_features))
-            glof[0,:,:] = gsf[i, 0:self.n_frames, :]
-
             # Prepare the global feature
-            # glof = sio.loadmat(testlist1[i])
-            # glof = glof['feat']
-            # glof = np.expand_dims(glof, axis=0)
-            # glof = np.transpose(glof, (0, 2, 1))
+            glof = sio.loadmat(testlist1[i])
+            glof = glof['feat']
+            glof = np.transpose(glof, (1, 0, 2))
             
             # Prepare the local feature
             locf = np.zeros((self.batch_size, self.n_frames, self.n_partitions-1, self.n_features))
@@ -163,12 +69,10 @@ class Evaluator():
             # Load the 2 partition local feature
             featl2 = sio.loadmat(testlist2[i])
             featl2 = featl2['feat']
-            # featl2 = np.transpose(featl2, (2, 0, 1))    # Comment this for previous feature
             
             # Load the 4 partition local feature
             featl4 = sio.loadmat(testlist4[i])
             featl4 = featl4['feat']
-            # featl4 = np.transpose(featl4, (2, 0, 1))    # Comment this for previous feature
             
             # Combine the local feature
             featl = np.concatenate([featl2, featl4],axis = 1)
@@ -205,7 +109,7 @@ class Evaluator():
         
         print("##########")
 
-        return Train_R1, Train_R5, Train_R20, Test_R1, Test_R5, Test_R20
+        return Test_R1, Test_R5, Test_R20
 
 # Perform Evaluation
 if __name__ == '__main__':

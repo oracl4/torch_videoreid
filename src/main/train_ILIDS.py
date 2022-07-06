@@ -20,11 +20,11 @@ import test_ILIDS
 wandb_flag = True
 
 # CUDA Device
-cuda_device = torch.device("cuda:0")
+cuda_device = torch.device("cuda:1")
 
 # Training parameters
-learning_rate = 0.000002
-n_epochs = 120
+learning_rate = 2e-6
+n_epochs = 240
 batch_size = 1
 
 # Network parameters
@@ -37,18 +37,13 @@ n_cluster = 38      # Number of cluster (for compatibility matrix only ?)
 
 #### Mars Dataset
 dataset_name = "ILIDS"
-n_class = 142
-experiment_name = "NN_Parameter"
+n_class = 136
+experiment_name = "hope"
 
-# Global features path
-globalfeat_path = '../../features/input/ILIDS/previous/train/train_glofeat.mat'
-
-# New global features path
-localfeat1_path = '../../features/input/ILIDS/base/train/partition_1/'
-
-# Local features path
-localfeat2_path = '../../features/input/ILIDS/base/train/partition_2/'
-localfeat4_path = '../../features/input/ILIDS/base/train/partition_4/'
+# Features path
+localfeat1_path = '../../features/input/ILIDS/hope/train/split_1/'
+localfeat2_path = '../../features/input/ILIDS/hope/train/split_2/'
+localfeat4_path = '../../features/input/ILIDS/hope/train/split_4/'
 
 # Evaluation path
 evaluation_path =  '../evaluation/ILIDS'
@@ -104,7 +99,6 @@ trainlist2 = sorted(glob.glob(localfeat2_path+'/*.mat'))
 trainlist4 = sorted(glob.glob(localfeat4_path+'/*.mat'))
 train_num = len(trainlist2)
 
-# Load the labels 0 - train_num/2 (142)
 label = np.arange(0, train_num/2)
 cls_list = np.repeat(label, 2)
 
@@ -144,7 +138,8 @@ optimizer = torch.optim.Adam(params=TrainingModel.parameters(), lr=learning_rate
 
 # Learning rate scheduler
 LR_decayRate = 0.5
-LR_Scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=100, gamma=LR_decayRate)
+decay_step = 0.8 * n_epochs
+LR_Scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=decay_step, gamma=LR_decayRate)
 
 print(TrainingModel)
 
@@ -175,9 +170,6 @@ for epoch in range(0, n_epochs+1):
         # Get the idx based on the batch size
         ix = n_batchs[batch:(batch+batch_size)]
 
-        # Get the global features
-        # glofeat = grf[ix, 0:n_frames, :]
-
         # Get the local features by concatenating the features
         locfeat = np.zeros((batch_size, n_frames, n_partitions-1, n_features))
 
@@ -187,18 +179,15 @@ for epoch in range(0, n_epochs+1):
             # Get the global features
             glofeat = sio.loadmat(trainlist1[idx])
             glofeat = glofeat['feat']
-            glofeat = np.expand_dims(glofeat, axis=0)
-            glofeat = np.transpose(glofeat, (0, 2, 1))  # Comment this for previous feature
+            glofeat = np.transpose(glofeat, (1, 0, 2))
 
             # Local features pool2
             featl2 = sio.loadmat(trainlist2[idx])
             featl2 = featl2['feat']
-            featl2 = np.transpose(featl2, (2, 0, 1))    # Comment this for previous feature
 
             # Local features pool4
             featl4 = sio.loadmat(trainlist4[idx])
             featl4 = featl4['feat']
-            featl4 = np.transpose(featl4, (2, 0, 1))    # Comment this for previous feature
 
             # Concatenate the features
             featl = np.concatenate([featl2, featl4],axis = 1)

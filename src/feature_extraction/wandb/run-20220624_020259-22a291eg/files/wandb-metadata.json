@@ -1,0 +1,24 @@
+{
+    "os": "Linux-5.13.0-51-generic-x86_64-with-debian-bullseye-sid",
+    "python": "3.6.13",
+    "heartbeatAt": "2022-06-23T18:03:02.782454",
+    "startedAt": "2022-06-23T18:02:59.495369",
+    "docker": null,
+    "gpu": "NVIDIA GeForce GTX 1080 Ti",
+    "gpu_count": 2,
+    "cpu_count": 6,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "train.py",
+    "codePath": "src/feature_extraction/train.py",
+    "git": {
+        "remote": "https://github.com/oracl4/torch_videoreid.git",
+        "commit": "92ae99b3e72e77345cb2c5f4eeff33e8a66b1420"
+    },
+    "email": "it.mahdi.yusuf@gmail.com",
+    "root": "/home/oracl4/work_dir/mahdi/torch_videoreid",
+    "host": "oracl4-ubu",
+    "username": "oracl4",
+    "executable": "/home/oracl4/anaconda3/envs/tf/bin/python"
+}

@@ -90,8 +90,8 @@ class Model(nn.Module):
         """
         
         # Expand the global features dimension
-        emb_global = global_features[:, :, None, :]    
-        
+        emb_global = global_features[:, :, None, :]
+
         # loss parameter
         CRF_Loss_Batch = 0.0
         Loss = 0.0

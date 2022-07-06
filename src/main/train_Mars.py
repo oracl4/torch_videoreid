@@ -47,7 +47,7 @@ globalfeat_path = '../../features/input/Mars/previous/train/trainlocfeatfix.mat'
 localfeat1_path = '../../features/input/Mars/base/train/partition_1/'
 
 # Local features path
-localfeat2_path = '../../features/input/Mars/   /train/partition_2/'
+localfeat2_path = '../../features/input/Mars/base/train/partition_2/'
 localfeat4_path = '../../features/input/Mars/base/train/partition_4/'
 
 # Evaluation path
@@ -153,7 +153,9 @@ optimizer = torch.optim.Adam(params=TrainingModel.parameters(), lr=learning_rate
 LR_decayRate = 0.5
 LR_Scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=100, gamma=LR_decayRate)
 
-# print(TrainingModel)
+print(TrainingModel)
+print("Trainable Params :", sum(p.numel() for p in TrainingModel.parameters() if p.requires_grad))
+print("Total Params     :", sum(p.numel() for p in TrainingModel.parameters()))
 
 # ===================================================================================================
 # Training Loop
@@ -192,8 +194,11 @@ for epoch in range(0, n_epochs+1):
             # Get the global features
             glofeat = sio.loadmat(trainlist1[idx])
             glofeat = glofeat['feat']
+            print(glofeat.shape)
             glofeat = np.expand_dims(glofeat, axis=0)
+            print(glofeat.shape)
             glofeat = np.transpose(glofeat, (0, 2, 1))        # Comment this for previous feature
+            print(glofeat.shape)
 
             # Local features pool2
             featl2 = sio.loadmat(trainlist2[idx])

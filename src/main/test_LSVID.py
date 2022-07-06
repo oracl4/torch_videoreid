@@ -27,13 +27,6 @@ class Evaluator():
         self.n_frames = n_frames
         self.n_partitions = n_partitions
         
-        # OLD
-        # Global features path
-        # self.globalfeat_path = '../../features/input/LSVID/previous/test/test_glofeat.mat'
-        # self.localfeat2_path = '../../features/input/LSVID/previous/test/test_split_2/'
-        # self.localfeat4_path = '../../features/input/LSVID/previous/test/test_split_4/'
-        
-        # NEW
         # Local features path
         self.localfeat1_path = '../../features/input/LSVID/trained_featex/test/partition_1/'
         self.localfeat2_path = '../../features/input/LSVID/trained_featex/test/partition_2/'
@@ -68,12 +61,6 @@ class Evaluator():
 
         for i in tqdm(range(0, test_num)):
             
-            # OLD
-            # Select the global feature
-            # glof = np.zeros((self.batch_size, self.n_frames, self.n_features))
-            # glof[0,:,:] = gsf[i, 0:self.n_frames, :]
-            
-            # NEW
             # Get the global features
             glof = sio.loadmat(testlist1[i])
             glof = glof['feat']

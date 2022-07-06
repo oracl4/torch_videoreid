@@ -20,11 +20,11 @@ import test_PRID
 wandb_flag = True
 
 # CUDA Device
-cuda_device = torch.device("cuda:1")
+cuda_device = torch.device("cuda:0")
 
 # Training parameters
-learning_rate = 0.000002
-n_epochs = 120
+learning_rate = 2e-6
+n_epochs = 240
 batch_size = 1
 
 # Network parameters
@@ -38,17 +38,12 @@ n_cluster = 38      # Number of cluster (for compatibility matrix only ?)
 #### Mars Dataset
 dataset_name = "PRID"
 n_class = 89
-experiment_name = "NN_Parameter"
+experiment_name = "hope"
 
-# Global features path
-globalfeat_path = '../../features/input/PRID/previous/train/train_glofeat.mat'
-
-# New global features path
-localfeat1_path = '../../features/input/PRID/base/train/partition_1/'
-
-# Local features path
-localfeat2_path = '../../features/input/PRID/base/train/partition_2/'
-localfeat4_path = '../../features/input/PRID/base/train/partition_4/'
+# Features path
+localfeat1_path = '../../features/input/PRID/hope/train/split_1/'
+localfeat2_path = '../../features/input/PRID/hope/train/split_2/'
+localfeat4_path = '../../features/input/PRID/hope/train/split_4/'
 
 # Evaluation path
 evaluation_path =  '../evaluation/PRID'
@@ -98,17 +93,12 @@ if not os.path.exists(model_dir):
 if not os.path.exists(tensorboard_dir):
 	os.makedirs(tensorboard_dir)
 
-# Load global features
-# grf = sio.loadmat(globalfeat_path)
-# grf = grf['glofeat']
-
 # Load the local features List
 trainlist1 = sorted(glob.glob(localfeat1_path+'/*.mat'))
 trainlist2 = sorted(glob.glob(localfeat2_path+'/*.mat'))
 trainlist4 = sorted(glob.glob(localfeat4_path+'/*.mat'))
 train_num = len(trainlist2)
 
-# Load the labels 0 - train_num/2 (89)
 label = np.arange(0, train_num/2)
 cls_list = np.repeat(label, 2)
 
@@ -148,7 +138,8 @@ optimizer = torch.optim.Adam(params=TrainingModel.parameters(), lr=learning_rate
 
 # Learning rate scheduler
 LR_decayRate = 0.5
-LR_Scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=100, gamma=LR_decayRate)
+decay_step = 0.8 * n_epochs
+LR_Scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=decay_step, gamma=LR_decayRate)
 
 print(TrainingModel)
 
@@ -179,9 +170,6 @@ for epoch in range(0, n_epochs+1):
         # Get the idx based on the batch size
         ix = n_batchs[batch:(batch+batch_size)]
 
-        # Get the global features
-        # glofeat = grf[ix, 0:n_frames, :]
-
         # Get the local features by concatenating the features
         locfeat = np.zeros((batch_size, n_frames, n_partitions-1, n_features))
 
@@ -191,18 +179,15 @@ for epoch in range(0, n_epochs+1):
             # Get the global features
             glofeat = sio.loadmat(trainlist1[idx])
             glofeat = glofeat['feat']
-            glofeat = np.expand_dims(glofeat, axis=0)
-            glofeat = np.transpose(glofeat, (0, 2, 1))        # Comment this for previous feature
+            glofeat = np.transpose(glofeat, (1, 0, 2))
 
             # Local features pool2
             featl2 = sio.loadmat(trainlist2[idx])
             featl2 = featl2['feat']
-            featl2 = np.transpose(featl2, (2, 0, 1))  # Comment this for previous feature
 
             # Local features pool4
             featl4 = sio.loadmat(trainlist4[idx])
             featl4 = featl4['feat']
-            featl4 = np.transpose(featl4, (2, 0, 1))  # Comment this for previous feature
 
             # Concatenate the features
             featl = np.concatenate([featl2, featl4],axis = 1)
@@ -274,12 +259,9 @@ for epoch in range(0, n_epochs+1):
         TrainingModel.eval()
         with torch.no_grad():
             evaluator = test_PRID.Evaluator(evaluation_path, TrainingModel, dataset_name, experiment_name, epoch, batch_size, n_features, n_class, n_frames, n_partitions, cuda_device)
-            Train_R1, Train_R5, Train_R20, Test_R1, Test_R5, Test_R20 = evaluator.get_evaluation()
+            Test_R1, Test_R5, Test_R20 = evaluator.get_evaluation()
 
         # Tensorboard
-        writer.add_scalar('train_r1', Train_R1, epoch)
-        writer.add_scalar('train_r5', Train_R5, epoch)
-        writer.add_scalar('train_r20', Train_R20, epoch)
         writer.add_scalar('test_r1', Test_R1, epoch)
         writer.add_scalar('test_r5', Test_R5, epoch)
         writer.add_scalar('test_r20', Test_R20, epoch)
@@ -288,9 +270,6 @@ for epoch in range(0, n_epochs+1):
         if wandb_flag:
             wandb.log({
                 "epoch" : epoch,
-                "train_r1" : Train_R1,
-                "train_r5" : Train_R5,
-                "train_r20" : Train_R20,
                 "test_r1" : Test_R1,
                 "test_r5" : Test_R5,
                 "test_r20" : Test_R20

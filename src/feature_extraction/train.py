@@ -6,7 +6,7 @@ import numpy as np
 from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
 
-import resnet_ as resnet
+import resnet_old as resnet
 import random
 
 import wandb
@@ -30,14 +30,15 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 wandb_flag = True
 
 #### Hyperparameter
-base_lr = 0.0005
+base_lr = 1e-3
 momentum = 0.9
 weight_decay = 5e-4
 gamma = 0.1
 
-num_epoches = 501
-step_size = 120
-batch_size = 16
+num_epoches = 400
+step_size = 100
+batch_size = 10
+num_worker = 4
 warmup_iter = 10
 
 # Augmentation
@@ -49,16 +50,35 @@ transform = transforms.Compose([transforms.ToTensor(),  normalizer,])
 # Pretrained ResNet-50
 resnet50_path = "../../model/feature_extraction/resnet50-19c8e357.pth"
 
+#### Mars
+dataset_name = "Mars"
+image_dir = '../../dataset/Mars/images/'
+sequence_file = '../../dataset/Mars/seq_list/list_train_seq.txt'
+num_classes= 625
+
 #### LS-VID Dataset
-dataset_name = "LSVID"
-image_dir = '../../dataset/LS-VID/tracklet/'
-sequence_file = '../../dataset/LS-VID/list_sequence/list_seq_train.txt'
-num_classes= 3772
+# dataset_name = "LSVID"
+# image_dir = '../../dataset/LS-VID/tracklet/'
+# sequence_file = '../../dataset/LS-VID/list_sequence/list_seq_train.txt'
+# num_classes= 842
+
+#### PRID Dataset
+# dataset_name = "PRID"
+# image_dir = '../../dataset/prid/multi_shot/'
+# sequence_file = '../../dataset/prid/sequence_file/train001.txt'
+# num_classes = 89
+
+#### ILIDS Dataset
+# dataset_name = "ILIDS"
+# image_dir = '../../dataset/iLIDS-VID/i-LIDS-VID/sequences/'
+# sequence_file = '../../dataset/iLIDS-VID/sequence_file/train001.txt'
+# num_classes= 136
 
 # Global Settings
+split=1	
 partition = 1
-experiment_name = "experiment"
-split = "train"
+temporal_frame = 16
+experiment_name = "hope"
 
 # Work directory
 work_dir = '../../work_dir/featex/'
@@ -75,7 +95,7 @@ print("Sequence File :", sequence_file)
 print("Work Directory :", work_dir)
 print("Model Directory :", model_dir)
 print("Tensorboard Directory :", tensorboard_dir)
-print("Partition :", partition)
+print("Split :", split)
 
 ### Initialization
 
@@ -95,25 +115,34 @@ train_dataset = dataset.videodataset(dataset_dir=image_dir,
 									txt_path=sequence_file,
 									new_height=256,
 									new_width=128,
-									frames=18,
+									frames=temporal_frame,
 									transform=transform)
 
 train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
 											batch_size=batch_size,
 											shuffle=True,
-											num_workers=4,
+											num_workers=num_worker,
 											drop_last=True)
 # Load the Model
-model, new_param = resnet.resnet50(pretrained=resnet50_path, num_classes=num_classes, train=True, partition=1)
+model, new_param = resnet.resnet50(pretrained=resnet50_path,
+									num_classes=num_classes,
+									train=True,
+									frames=temporal_frame,
+									split=1,
+									partition=1)
+
 model = nn.DataParallel(model, device_ids=[0,1])
 model.cuda()
 
 # Criterion and Optimizer
 criterion = nn.CrossEntropyLoss()
+criterion     = nn.CrossEntropyLoss()
+criterion_cls = CrossEntropyLabelSmooth(num_classes).cuda()
+criterion_tri = TripletLoss(margin=0.3)
 
 param = []
 params_dict = dict(model.named_parameters())
-for key, v in params_dict.items():
+for key, v in params_dict.items():	
 		param += [{ 'params':v,  'lr_mult':1}]
 
 optimizer = torch.optim.SGD(param, lr=base_lr, momentum=momentum, weight_decay=weight_decay)
@@ -135,8 +164,7 @@ def adjust_lr(epoch, alpha):
 		g['lr'] = lr * g.get('lr_mult', 1)
 	return lr
 
-
-### Logging
+#### Logging
 
 # WanDB 
 if wandb_flag:
@@ -185,15 +213,17 @@ for epoch in range(0, num_epoches):
 	# Iterate through data in dataloader
 	for i, data in tqdm(enumerate(train_loader, 1)):
 		
-		# Load the data
+		# Get the image and label
 		images, label = data
+		
+		# Fix the temporal frame shape
 		images = torch.transpose(images, 1, 2)
+
+		# Put the image and label to tensor on GPU
 		images = Variable(images).cuda()
+		label = Variable(label).cuda()
 		images = images.reshape(images.size(0)*images.size(1), images.size(2), images.size(3), images.size(4))
 
-		# Get the label
-		label = Variable(label).cuda()
-        
         # Perform random erasing augmentation on the image
 		w = random.randint(1, 32)
 		h = random.randint(1, 64)
@@ -207,20 +237,25 @@ for epoch in range(0, num_epoches):
 		pro = random.randint(0,10)
 
 		if etw-stw > 0 or sth-eth > 0 and pro>5:
-			imp = torch.rand(images.size(0), images.size(1),eth-sth,etw-stw)
+			imp = torch.rand(images.size(0), images.size(1), eth-sth, etw-stw)
 			images[:,:,sth:eth,stw:etw] = imp
 
         # Forward the image through model
 		out,_ = model(images)
 
-		# print(out.shape)
+		# print("Debugging")
+		# print(out.shape)	
 		# print(label.shape)
-		
+
 		# Calculate the loss with CrossEntropy
-		loss =  criterion(out, label)
+		loss =  criterion_cls(out, label)
 		running_loss += loss.item() * label.size(0)
 		_, pred = torch.max(out, 1)
 		
+		# Terminate
+		# import sys
+		# sys.exit()
+
 		num_correct = (pred == label).sum()
 		running_acc += num_correct.item()
 		
@@ -256,9 +291,9 @@ for epoch in range(0, num_epoches):
 			"accuracy" : epoch_acc,
 			"LR" : lr
 		})
-
+	
 	# For each n epoch save model
-	if((epoch) % 50 == 0):
+	if((epoch) % 10 == 0):
 
 		# Save the model
 		model_out_path = model_dir + "/model_epoch_" + str(epoch) + ".pth"

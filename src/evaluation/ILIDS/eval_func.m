@@ -6,7 +6,7 @@ function [R1, R5, R20] = eval_func(feat_path)
     video_feat_test = process_box_feat(box_feature_test);
     video_feat_test = box_feature_test;
     feat_gallery = video_feat_test(:,1:2:end);
-    feat_query   = video_feat_test(:, 2:2:end);
+    feat_query   = video_feat_test(:,2:2:end);
     distance = EuclidDist(feat_gallery',feat_query');
     CMC = calc_CMC(distance);
     

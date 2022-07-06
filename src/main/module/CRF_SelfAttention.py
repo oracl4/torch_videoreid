@@ -37,7 +37,7 @@ class CRF_SelfAttention(nn.Module):
         self.device = device
         
         # Maximum number of iterations in CRF as RNN
-        self.max_iterations = 2
+        self.max_iterations = 5
 
         # Compatibility matrix > identity matrix with n_cluster x n_cluster
         self.compatibility_matrix = nn.Parameter(

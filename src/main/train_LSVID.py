@@ -17,13 +17,13 @@ import test_LSVID
 # All parameter, change before training
 
 # WanDB logging
-wandb_flag = True
+wandb_flag = False
 
 # CUDA Device
 cuda_device = torch.device("cuda:1")
 
 # Training parameters
-learning_rate = 0.0002
+learning_rate = 2e-6
 n_epochs = 120
 batch_size = 1
 
@@ -37,16 +37,11 @@ n_cluster = 38      # Number of cluster (for compatibility matrix only ?)
 
 #### Mars Dataset
 dataset_name = "LSVID"
-n_class = 1042
-experiment_name = "trained_featex"
+n_class = 842
+experiment_name = "hope"
 
-# Global features path
-# globalfeat_path = '../../features/input/LSVID/previous/trainval/trainval_glofeat.mat'
-
-# New global features path
+# Feature Path
 localfeat1_path = '../../features/input/LSVID/trained_featex/train/partition_1/'
-
-# Local features path
 localfeat2_path = '../../features/input/LSVID/trained_featex/train/partition_2/'
 localfeat4_path = '../../features/input/LSVID/trained_featex/train/partition_4/'
 
@@ -110,6 +105,8 @@ train_num = len(trainlist2)
 # Load the labels
 gt = sio.loadmat(labels_path)
 gt = gt['trainval_labels']
+
+print(gt.shape)
 
 cle = np.eye(n_class)
 

@@ -5,6 +5,7 @@ from einops import rearrange
 from torch import nn
 
 def compute_mhsa(q, k, v, adjacency, heads, device, scale_factor=1, mask=None, ):
+    
     # resulted shape will be: [batch, heads, tokens, tokens]
     scaled_dot_prod = torch.einsum('... i d , ... j d -> ... i j', q, k) * scale_factor
 
