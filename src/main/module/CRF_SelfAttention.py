@@ -37,8 +37,8 @@ class CRF_SelfAttention(nn.Module):
         self.device = device
         
         # Maximum number of iterations in CRF as RNN
-        self.max_iterations = 5
-
+        self.max_iterations = 2
+        
         # Compatibility matrix > identity matrix with n_cluster x n_cluster
         self.compatibility_matrix = nn.Parameter(
                                         -(torch.eye(self.n_cluster, dtype=torch.float32))
@@ -80,6 +80,7 @@ class CRF_SelfAttention(nn.Module):
         """
         if not adj:
             adjacency = torch.ones((self.n_partitions*self.n_frames, self.n_partitions*self.n_frames))
+        
         return adjacency
     
     def temporal_locality(self, scale, mhsa, embedding, adjacency, norm_scale):
@@ -155,36 +156,36 @@ class CRF_SelfAttention(nn.Module):
         Return:
             pairwise:   Pairwise energy [n_frames, n_partitions, n_cluster]
         """
-        pairwise = torch.cat(torch.chunk(pairwise, self.n_partitions, 0), dim=1)
+        pairwise = torch.cat(torch.chunk(pairwise, self.n_partitions, dim=0), dim=1)
         pairwise = torch.matmul(self.compatibility_matrix, torch.unsqueeze(torch.squeeze(pairwise), dim=2))
         pairwise = torch.unsqueeze(torch.squeeze(pairwise), dim=0)
-        pairwise = torch.cat(torch.chunk(pairwise, self.n_partitions, 1), dim=0)
+        pairwise = torch.cat(torch.chunk(pairwise, self.n_partitions, dim=1), dim=0)
         return pairwise
     
-    def message_passing(self, multiscale_embed):
+    def message_passing(self, inputs):
         """
         Perform calculation of pairwise energy using self-attention
         
         Args:            
-            multiscale_embed:   Multiscale embedding from global and local features
+            inputs:     Multiscale embedding from global and local features
         """
         
         # Define Adjacency
         adjacency = self.adjacency()
 
         # Temporal self-attention
-        temporal = self.temporal_attention(multiscale_embed, adjacency)
-        pairwise = temporal.permute(1, 0, 2)
-        pairwise = self.message_passing_linear(pairwise)
-        
-        return pairwise
+        temporal = self.temporal_attention(inputs, adjacency)
+        inputs = temporal.permute(1, 0, 2)
+        pairwise = self.message_passing_linear(inputs)
+
+        return inputs, pairwise
     
-    def halting_probability(self, embed, ptn, Rt, Nt):
+    def halting_probability(self, inputs, ptn, Rt, Nt):
         """
         Calculate the halting probability for the mean-field inference loop
 
         Args:            
-            embed:           Multiscale embedding from global and local features
+            inputs:          Multiscale embedding from global and local features
             ptn, Rt, Nt:     Halting parameters
         Return:
             p:               Previous states
@@ -193,7 +194,7 @@ class CRF_SelfAttention(nn.Module):
         """
         
         ####
-        p = self.halting_linear(embed)
+        p = self.halting_linear(inputs)
         p = torch.sigmoid(p)
         p = torch.mean(p, dim=1)
         p = torch.squeeze(p)
@@ -211,12 +212,12 @@ class CRF_SelfAttention(nn.Module):
         
         return p, ptn, Rt, Nt, new_halted, run
     
-    def transition_function(self, embed, p, Rt, new_halted, run, prev):
+    def transition_function(self, inputs, p, Rt, new_halted, run, prev):
         """
         Calculate the relational context
 
         Args:            
-            embed:                  Multiscale embedding from global and local features
+            inputs:                 Multiscale embedding from global and local features
             p, Rt, new_halted, run: Halting parameters
             prev:                   Previous states
         Return:
@@ -225,9 +226,10 @@ class CRF_SelfAttention(nn.Module):
         weights = torch.unsqueeze((p * run + new_halted * Rt), dim=-1)
         weights = torch.unsqueeze(weights, dim=-1)        
         weights = torch.tile(weights, [1, self.n_partitions, self.n_features])
-        y = torch.multiply(embed, weights) + torch.multiply(prev , 1-weights)
+        inputs = inputs.permute(1, 0, 2)
+        y = torch.multiply(inputs, weights) + torch.multiply(prev , 1-weights)
         
-        return y
+        return inputs, y
     
     # TODO: Contrastive loss function
     # def contrastive_loss(self, marginal, context):
@@ -293,7 +295,10 @@ class CRF_SelfAttention(nn.Module):
         
         # Iteration step
         iter_step = 0
-        
+
+        # First inputs is the multiscale features
+        inputs = multiscale_embed
+
         #### Perform mean-field inference iteration
         # Inputs :
         #    multiscale features
@@ -306,11 +311,11 @@ class CRF_SelfAttention(nn.Module):
 
             # Compute the halting probability
             # Equation 4 / Equation 12 on Group Activity Paper
-            p, ptn, Rt, Nt, new_halted, run = self.halting_probability(multiscale_embed, ptn, Rt, Nt)
+            p, ptn, Rt, Nt, new_halted, run = self.halting_probability(inputs, ptn, Rt, Nt)
             
             # Message Passing using Self-Attention
             # Equation 5
-            pairwise = self.message_passing(multiscale_embed)
+            inputs, pairwise = self.message_passing(inputs)
             
             # Compatibility Transform
             # Equation 6
@@ -321,12 +326,12 @@ class CRF_SelfAttention(nn.Module):
             marginal = -pairwise + marginal
             
             # Transition Function for updating the relational context
-            context = self.transition_function(multiscale_embed, p, Rt, new_halted, run, context)
+            inputs, context = self.transition_function(inputs, p, Rt, new_halted, run, context)
             
             # For the next iteration
-            multiscale_embed = multiscale_embed.view(input_shape)
+            inputs = inputs.view(input_shape)
             context = context.view(input_shape)
-            
+
             # Reshape
             for i in [ptn, Rt, Nt]:
                 i = i.view(input_shape[0:1])

@@ -170,6 +170,8 @@ class ResNet(nn.Module):
 		
 		# print("Split, Partition", self.split, self.partition)
 
+		print(x.shape)
+
 		# Split 2
 		if self.split == 2 and self.partition == 1:
 			x = x[:,:,0:8,:] 	# 21
@@ -185,7 +187,7 @@ class ResNet(nn.Module):
 			x = x[:,:,8:12,:]	# 43
 		elif self.split == 4 and self.partition == 4:
 			x = x[:,:,12:16,:]	# 44
-
+		
 		x = self.avgpool(x)
 		
 		x = x.view(x.size(0), -1)

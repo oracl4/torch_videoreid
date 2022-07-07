@@ -163,6 +163,8 @@ class ResNet(nn.Module):
 
 		# Global (take all)
 		x = self.layer4(x)
+
+		print(x.shape)
 		
 		# Change the partition split
 		n_split = self.partition
@@ -182,12 +184,12 @@ class ResNet(nn.Module):
 			x_ = x_.view(x.size(0), -1)
 			x_ = self.feat(x_)
 
-			print(x_.shape)
+			# print(x_.shape)
 			
 			# x = x.unsqueeze(dim=0)
 			x_ = x_.view(int(x_.size(0)/self.frames), self.frames, -1)
 
-			print(x_.shape)
+			# print(x_.shape)
 
 			x0 = torch.transpose(x_, 1, 2)
 			
@@ -197,7 +199,7 @@ class ResNet(nn.Module):
 			x2 = self.feat2(x_).squeeze(dim=3)
 			x3 = self.feat3(x_).squeeze(dim=3)
 
-			print(x0.size(), x1.size(), x2.size(), x3.size())
+			# print(x0.size(), x1.size(), x2.size(), x3.size())
 			
 			x_ = torch.cat((x0, x1, x2, x3), dim=1)
 

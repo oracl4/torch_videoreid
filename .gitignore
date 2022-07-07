@@ -10,6 +10,7 @@ model/*
 !model/.gitkeep
 
 src/main/wandb/*
+src/feature_extraction/wandb/*
 
 work_dir/*
 !work_dir/.gitkeep
